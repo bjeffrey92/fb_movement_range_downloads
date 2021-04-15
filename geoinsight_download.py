@@ -23,10 +23,10 @@ class FbGeoinsights:
         self.browser["email"] = input("Email Address: ")
         self.browser["pass"] = getpass("Password: ")
         self.log("Logging in...", False)
-        self.browser.submit_selected()
+        self.browser.submit_selected(btnName="login")
 
         response = self.browser.get(
-            url="https://www.facebook.com/geoinsights-portal/downloads/?id=746067446058242"  # noqa: E501
+            "https://www.facebook.com/geoinsights-portal/downloads/?id=746067446058242"  # noqa: E501
         )  # check login has succeeded
         if response.ok:
             self.log(crayons.green("OK"))
@@ -46,20 +46,20 @@ class FbGeoinsights:
 
             if self.counter > self.max_download:
                 raise Exception(
-                    "Stopping now as {} already downloaded".format(
-                        self.counter
-                    )
+                    f"Stopping now as {self.counter} already downloaded"
                 )
             name = name.replace(" ", "_").lower()  # snakecase
             title = f"{name}_{day}_movement_range_maps.csv"
             url = self.url(loc_id, day)
             status = self.download(title, url)
             if status["success"]:
+                with open(title, "r") as a:
+                    a.writelines(status.value)
                 self.log(crayons.green("OK"), True)
             else:
                 self.log(crayons.red("FAILED"), True)
 
-    def log(self, message, newline=True):
+    def log(self, message: str, newline: bool = True):
         if self.verbose:
             if newline:
                 print(message)
@@ -69,22 +69,24 @@ class FbGeoinsights:
     def url(self, loc_id: str, day: str):
         return f"{BASE_URL[0]}?id={loc_id}&ds={day}{BASE_URL[1]}"
 
-    def download(self, title, url):
+    def download(self, title: str, url: str):
         self.counter += 1
-        code = None
         try:
             self.log(f"Downloading {title}...", False)
             response = self.browser.get(url=url)
-            code = response.status_code
             if (
                 response.status_code == 200
                 and response.text != "Not found"
                 and not response.text.startswith("<!DOCTYPE html>")
             ):
-                return {"success": True, "value": response.text, "code": code}
+                return {
+                    "success": True,
+                    "value": response.text,
+                    "code": response.status_code,
+                }
         except Exception:
             pass
-        return {"success": False, "value": None, "code": code}
+        return {"success": False, "value": None, "code": None}
 
 
 fb_downloader = FbGeoinsights()
