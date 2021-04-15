@@ -57,7 +57,7 @@ class FbGeoinsights:
             status = self.download(title, url)
             if status["success"]:
                 with open(title, "w") as a:
-                    a.writelines(status.value)
+                    a.writelines(status["value"])
                 self.log(crayons.green("OK"), True)
             else:
                 self.log(crayons.red("FAILED"), True)
@@ -99,7 +99,7 @@ def parse_args():
 
     parser.add_argument(
         "--start_date",
-        help="Date of earliest days data to import. Must be in format: YYYY-MM-DD (default = 2020-02-21)",  # noqa: E501
+        help="Date of earliest day's data to import. Must be in format: YYYY-MM-DD (default = 2021-04-11)",  # noqa: E501
         default="2021-04-11",
         type=str,
     )
