@@ -1,50 +1,63 @@
+from datetime import date, timedelta
+
 import mechanicalsoup
 import crayons
-import pickle
+from getpass import getpass
 
-URL = "https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2Fgeoinsights-portal%2F"
-BASE = "https://www.facebook.com/geoinsights-portal/downloads"
+LOGIN_URL = "https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2Fgeoinsights-portal%2F"  # noqa: E501
+BASE_URL = [
+    "https://www.facebook.com/geoinsights-portal/downloads/vector/",
+    "&extra[crisis_name]=ETH_gadm_2",
+]
 
 
 class FbGeoinsights:
-    def __init__(self, credentials=None, verbose=True, max_download=100):
+    def __init__(self, max_download: int = 100, verbose: bool = True):
         self.verbose = verbose
-        self.browser = mechanicalsoup.StatefulBrowser()
 
+        self.browser = mechanicalsoup.StatefulBrowser()
         self.log("Connecting...", False)
-        self.browser.open(URL)
+        self.browser.open(LOGIN_URL)
         self.log(crayons.green("OK"))
         self.browser.select_form('form[id="login_form"]')
-        if type(credentials) is str:
-            self.log("Loading cookies!...", False)
-            with open(credentials, "rb") as f:
-                cookies = pickle.load(f)
-            self.browser.set_cookiejar(cookies)
+        self.browser["email"] = input("Email Address: ")
+        self.browser["pass"] = getpass("Password: ")
+        self.log("Logging in...", False)
+        self.browser.submit_selected()
+
+        response = self.browser.get(
+            url="https://www.facebook.com/geoinsights-portal/downloads/?id=746067446058242"  # noqa: E501
+        )  # check login has succeeded
+        if response.ok:
             self.log(crayons.green("OK"))
         else:
-            self.browser["email"] = credentials["email"]
-            self.browser["pass"] = credentials["password"]
-            self.log("Logging in...", False)
-            response = self.browser.submit_selected()
-            self.response = response
-            if not response.ok:
-                print("Login failed!")
-            self.log(crayons.green("OK"))
+            self.log(crayons.red("FAILED"))
+            raise Exception("Login Failed")
+
         self.counter = 0
         self.max_download = max_download
 
-    def dump_cookies(self, path):
-        with open(path, "wb") as f:
-            pickle.dump(self.browser.get_cookiejar(), f)
+    def fetch(self, start_date, name: str, loc_id: str):
+        start_date = date(*tuple(map(int, start_date.split("-"))))
+        today = date.today()
+        delta = today - start_date
+        for i in range(delta.days + 1):
+            day = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
 
-    def fetch(self, name, loc_id, date, time, type):
-        if self.counter > self.max_download:
-            raise Exception(
-                "Stopping now as {} already downloaded".format(self.counter)
-            )
-        title = "{} ({}/{})".format(name, date, time)
-        url = self.url(loc_id, date, time, type)
-        return self.download(title, url)
+            if self.counter > self.max_download:
+                raise Exception(
+                    "Stopping now as {} already downloaded".format(
+                        self.counter
+                    )
+                )
+            name = name.replace(" ", "_").lower()  # snakecase
+            title = f"{name}_{day}_movement_range_maps.csv"
+            url = self.url(loc_id, day)
+            status = self.download(title, url)
+            if status["success"]:
+                self.log(crayons.green("OK"), True)
+            else:
+                self.log(crayons.red("FAILED"), True)
 
     def log(self, message, newline=True):
         if self.verbose:
@@ -53,16 +66,14 @@ class FbGeoinsights:
             else:
                 print(message, end="", flush=True)
 
-    def url(self, loc_id, date, time, type):
-        return "{base}/{type}/?id={loc_id}&ds={date}%20{time}".format(
-            base=BASE, type=type, loc_id=loc_id, date=date, time=time
-        )
+    def url(self, loc_id: str, day: str):
+        return f"{BASE_URL[0]}?id={loc_id}&ds={day}{BASE_URL[1]}"
 
     def download(self, title, url):
         self.counter += 1
         code = None
         try:
-            self.log("Downloading {}...".format(title), False)
+            self.log(f"Downloading {title}...", False)
             response = self.browser.get(url=url)
             code = response.status_code
             if (
@@ -74,3 +85,11 @@ class FbGeoinsights:
         except Exception:
             pass
         return {"success": False, "value": None, "code": code}
+
+
+fb_downloader = FbGeoinsights()
+fb_downloader.fetch(
+    start_date="2021-04-11",
+    name="Addis Ababa",
+    loc_id="642750926308152",
+)
