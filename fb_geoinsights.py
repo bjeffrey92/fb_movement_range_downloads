@@ -1,8 +1,8 @@
 from datetime import date, timedelta
+from getpass import getpass
 
 import mechanicalsoup
 import crayons
-from getpass import getpass
 
 LOGIN_URL = "https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2Fgeoinsights-portal%2F"  # noqa: E501
 BASE_URL = [
