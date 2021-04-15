@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+import argparse
 from datetime import date, timedelta
 
 import mechanicalsoup
@@ -53,7 +56,7 @@ class FbGeoinsights:
             url = self.url(loc_id, day)
             status = self.download(title, url)
             if status["success"]:
-                with open(title, "r") as a:
+                with open(title, "w") as a:
                     a.writelines(status.value)
                 self.log(crayons.green("OK"), True)
             else:
@@ -89,9 +92,41 @@ class FbGeoinsights:
         return {"success": False, "value": None, "code": None}
 
 
-fb_downloader = FbGeoinsights()
-fb_downloader.fetch(
-    start_date="2021-04-11",
-    name="Addis Ababa",
-    loc_id="642750926308152",
-)
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Download movement range maps data from Facebook Data for Good"  # noqa: E501
+    )
+
+    parser.add_argument(
+        "--start_date",
+        help="Date of earliest days data to import. Must be in format: YYYY-MM-DD (default = 2020-02-21)",  # noqa: E501
+        default="2021-04-11",
+        type=str,
+    )
+    parser.add_argument(
+        "--location_name",
+        help="Name of location to download data for (default = Addis Ababa)",
+        default="Addis Ababa",
+        type=str,
+    )
+    parser.add_argument(
+        "--location_id",
+        help="ID of location to download data for (default = 642750926308152)",
+        default="642750926308152",
+        type=str,
+    )
+
+    return parser.parse_args()
+
+
+def main(args):
+    fb_downloader = FbGeoinsights()
+    fb_downloader.fetch(
+        start_date=args.start_date,
+        name=args.location_name,
+        loc_id=args.location_id,
+    )
+
+
+if __name__ == "__main__":
+    main(parse_args())
